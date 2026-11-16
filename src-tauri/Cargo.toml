@@ -1,0 +1,52 @@
+[package]
+name = "deploy"
+version = "0.1.0"
+description = "Moonshift deploy - reusable pretty installer"
+authors = ["Moonshift"]
+edition = "2021"
+default-run = "deploy"
+
+[lib]
+name = "deploy_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[[bin]]
+name = "deploy"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+serde_json = "1"
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+liquid-glass = { path = "../../liquid-glass" }
+glass-ui = { path = "../../glass-ui/native", features = ["tauri"] }
+base64 = "0.22"
+winreg = "0.55"
+rfd = "0.15"
+windows = { version = "0.58", features = [
+    "Foundation",
+    "Management_Deployment",
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_System_Com",
+    "Win32_System_Threading",
+    "Win32_UI_Shell",
+    "Win32_UI_WindowsAndMessaging",
+] }
+
+# glass-ui's manifest pulls liquid-glass from GitHub; redirect that git
+# source to the sibling checkout so ONE compiled copy of the engine serves
+# the workspace. An app may commit patches (a library crate must not).
+[patch."https://github.com/alphamerics/liquid-glass"]
+liquid-glass = { path = "../../liquid-glass" }
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+panic = "abort"
+strip = true
