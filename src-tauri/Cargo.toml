@@ -28,6 +28,7 @@ base64 = "0.22"
 winreg = "0.55"
 rfd = "0.15"
 windows = { version = "0.58", features = [
+    "ApplicationModel",
     "Foundation",
     "Management_Deployment",
     "Win32_Foundation",
