@@ -130,17 +130,36 @@ pub fn register_sparse(
         .AddPackageByUriAsync(&package_uri, &options)
         .map_err(|e| format!("AddPackageByUriAsync failed: {e}"))?;
     // The operation completes with an OK status even when the deployment
-    // failed — the real error rides in the DeploymentResult (its extended
-    // error code and text), so it must be inspected explicitly.
+    // failed — the real error rides in the DeploymentResult. Note that in
+    // windows-rs the failure HRESULT arrives as the Ok VALUE of
+    // ExtendedErrorCode() (the out-param), not as Err — the Err branch only
+    // fires when the property call itself fails — so the value must be
+    // tested with HRESULT::is_err, not matched on.
     let result = op.get().map_err(|e| format!("package registration failed: {e}"))?;
-    if let Err(status) = result.ExtendedErrorCode() {
+    let extended = result
+        .ExtendedErrorCode()
+        .map_err(|e| format!("package registration failed: {e}"))?;
+    if extended.is_err() {
         let text = result
             .ErrorText()
             .map(|t| t.to_string())
             .unwrap_or_default();
+        let hint = match extended {
+            e if e.0 == 0x800B0109u32 as i32 => {
+                "; the signing certificate is not trusted at machine level (TrustedPeople/Root)"
+                    .to_string()
+            }
+            e if e.0 == 0x800B0100u32 as i32 => {
+                "; the package signature could not be validated".to_string()
+            }
+            e if e.0 == 0x800704B7u32 as i32 => "; the elevation prompt was declined".to_string(),
+            _ => String::new(),
+        };
         return Err(format!(
-            "package registration failed: {status}{}",
-            if text.is_empty() { String::new() } else { format!(" ({text})") }
+            "package registration failed: {:#010x}{}{}",
+            extended.0,
+            if text.is_empty() { String::new() } else { format!(" ({text})") },
+            hint,
         ));
     }
 
